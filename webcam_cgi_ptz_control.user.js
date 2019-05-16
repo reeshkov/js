@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Webcam CGI PTZ Control
-// @version     0.2
+// @version     0.3
 // @grant       none
 // @match       http://*/tmpfs/auto.jpg
 // @namespace   https://github.com/reeshkov/js
