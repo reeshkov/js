@@ -3,8 +3,9 @@
 // @version     0.2
 // @grant       none
 // @match       http://*/tmpfs/auto.jpg
-// @updateURL   https://github.com
-// @downloadURL https://github.com
+// @namespace   https://github.com/reeshkov/js
+// @updateURL   https://github.com/reeshkov/js/raw/master/webcam_cgi_ptz_control.user.js
+// @downloadURL https://github.com/reeshkov/js/raw/master/webcam_cgi_ptz_control.user.js
 // @category    Controls
 // @description Add control buttons for CGI PTZ control commands from https://wiki.instar.com/1080p_Series_CGI_List/Complete_CGI_List/
 // ==/UserScript==
