@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Webcam CGI PTZ Control
-// @version     0.4
+// @version     0.5
 // @grant       none
 // @match       http://*/tmpfs/auto.jpg
 // @namespace   https://github.com/reeshkov/js
@@ -16,13 +16,13 @@
 var host = location.origin;
 document.title = "WebCam at "+host;
 
-	var div = document.createElement('div'),
+  var div = document.createElement('div'),
   mkButton = function(cmd, caption, callback){
-    var e = document.createElement("INPUT");
+    var url = document.getElementsByTagName("img")[0].src.replace(/\/tmpfs\/auto\.jpg.*$/,'') , e = document.createElement("INPUT");
     e.setAttribute("type", "button");
     e.setAttribute("value", caption);
     e.onclick=function(){
-      var req = host+cmd;
+      var req = url+cmd;
       console.log("request "+caption+" "+req);
       var oReq = new XMLHttpRequest();
       oReq.addEventListener("load", function() {
