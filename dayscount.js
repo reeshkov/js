@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Days count calendar at consultant.ru
-// @version      0.1
+// @version      0.2
 // @description  days count
 // @author       Reeshkov
 // @match        http*://www.consultant.ru/law/ref/calendar/proizvodstvennye/*
@@ -21,16 +21,31 @@
     document.body.appendChild(div);
 
     window.addEventListener('click',function(event){
-        var x = event.clientX, y = event.clientY,
-            element = document.elementFromPoint(x, y);
+//         var x = event.clientX, y = event.clientY,
+//             element = document.elementFromPoint(x, y);
+        var element = event.target; 
         if(element.tagName.toUpperCase() === "TD"){
             if(!element.style.backgroundColor){
                 element.style.backgroundColor = "green";
+                element.style.cursor = "no-drop";
                 countNode.textContent = parseInt(countNode.textContent, 10) + 1;
             }else{
                 element.style.backgroundColor = "";
+                element.style.cursor = "copy";
                 countNode.textContent = parseInt(countNode.textContent, 10) - 1;
             }
         }
-    });
+    }, false);
+    window.addEventListener("mouseover", function( event ) {
+        var element = event.target;
+        if(event.target.tagName.toUpperCase() === "TD"){
+            if(!element.style.backgroundColor){
+                element.style.cursor = "copy";
+            }else{
+                element.style.cursor = "no-drop";
+            }
+        }else{
+            element.style.cursor = "auto";
+        }
+    }, false);
 })();
