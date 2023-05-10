@@ -3,7 +3,7 @@
 // @version      0.2
 // @description  days count
 // @author       Reeshkov
-// @match        http*://www.consultant.ru/law/ref/calendar/proizvodstvennye/*
+// @match        https://www.consultant.ru/law/ref/calendar/proizvodstvennye/*
 // @namespace   https://github.com/reeshkov/js
 // @updateURL   https://github.com/reeshkov/js/raw/master/dayscount.js
 // @downloadURL https://github.com/reeshkov/js/raw/master/dayscount.js
