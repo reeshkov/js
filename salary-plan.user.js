@@ -29,7 +29,11 @@
         userData = JSON.parse(userData);
         // console.log("userData", JSON.stringify(userData));
     }
-    let saveUserData = () => GM_setValue(year, JSON.stringify(userData));
+    let saveUserData = () => {
+        var data = JSON.stringify(userData)
+        GM_setValue(year, data);
+        userDataChanged = false;
+    };
     const salaryArgs = ["Рабочий","Отпуск","Больничный"];
     const salaryArgsIndex = (() => {let o = {}; salaryArgs.forEach((k, i) => o[k] = i); return o;})()
     const salaryArgsColors = ["white","green","yellow"];
@@ -44,9 +48,8 @@
             item.addEventListener('click',function(event){
                 var element = event.target;
                 event.stopPropagation();
-                console.log(i, element.textContent, salaryArgsIndex[element.textContent]);
                 var dayElement = document.querySelector('[element-clicked-id="'+menuContainer.dataset.clickedElementId+'"]');
-                var elementDayType = dayElement.getAttribute("element-day-type"),
+                var elementDayType = parseInt(dayElement.getAttribute("element-day-type")),
                 elementDayTypeNew = salaryArgsIndex[element.textContent],
                 m = dayElement.getAttribute("element-month-id"),
                 d = dayElement.getAttribute("element-day-id");
@@ -57,7 +60,9 @@
                     console.log(dayElement);
                 }
                 if (userDataChanged) {
+                    console.log(i, element.textContent, typeof elementDayType, elementDayType, elementDayType!=elementDayTypeNew, elementDayTypeNew, typeof elementDayTypeNew);
                     saveUserData();
+                    menuContainer.style.display = "none";
                 }
             }, false);
             item.addEventListener("mouseover", function( event ) {
