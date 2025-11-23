@@ -9,37 +9,34 @@
 // @downloadURL https://github.com/reeshkov/js/raw/master/salary-plan.user.js
 // @category    Webtools
 // @grant      none
+// @run-at      document-idle
 // ==/UserScript==
+
+
 
 (function() {
     'use strict';
     console.log("Days count loaded");
+    const salaryArgs = ["Рабочий","Отпуск","Больничный"];
 
     function createMenu() {
-        // 2. Create the menu container and links
         const menuContainer = document.createElement("div");
-        const link1 = document.createElement("a");
-        const link2 = document.createElement("a");
 
-        link1.addEventListener('click',function(event){
-            var element = event.target;
-            event.stopPropagation();
-            console.log(menuContainer);
-        }, false);
-        
-        link2.addEventListener('click',function(event){
-            var element = event.target;
-            event.stopPropagation();
-            console.log(menuContainer);
-        }, false);
-
-        link1.href = "#link1";
-        link1.textContent = "JS Link 1";
-        link2.href = "#link2";
-        link2.textContent = "JS Link 2";
-
-        menuContainer.appendChild(link1);
-        menuContainer.appendChild(link2);
+        salaryArgs.forEach((arg, i) => {
+            let item = document.createElement("div");
+            item.textContent = arg;
+            item.addEventListener('click',function(event){
+                var element = event.target;
+                event.stopPropagation();
+                console.log(i, menuContainer.clickedElement, element);
+            }, false);
+            item.addEventListener("mouseover", function( event ) {
+                var element = event.target;
+                element.style.cursor = "pointer";
+            }, false);
+            menuContainer.appendChild(item);
+            console.log("menu", arg, i, item);
+        });
 
         // 3. Apply necessary CSS styles inline using JavaScript
         menuContainer.style.display = "none"; // Initially hidden
@@ -50,70 +47,86 @@
         menuContainer.style.zIndex = "10";
         menuContainer.style.padding = "10px";
 
-        // Style the links (optional)
-        link1.style.display = "block";
-        link2.style.display = "block";
-        link1.style.padding = "5px 0";
-        link2.style.padding = "5px 0";
-        link1.style.color = "black";
-        link2.style.color = "black";
-        link1.style.textDecoration = "none";
-        link2.style.textDecoration = "none";
-
-
-        // 4. Append the menu to the body or a specific container
         document.body.appendChild(menuContainer);
 
         // 6. Add a listener to the window to close the menu when clicking elsewhere
         window.addEventListener("click", function(event) {
-            if (event.target !== targetElement && !menuContainer.contains(event.target)) {
+            if (!menuContainer.contains(event.target) ) {
                 menuContainer.style.display = "none";
             }
         });
         return menuContainer;
     }
-
     const menuContainer = createMenu();
-    window.addEventListener('click',function(event){
-        var element = event.target;
-        event.stopPropagation();
-        if(element.tagName.toUpperCase() === "TD"){
-            console.log("click",element);
-            // Toggle visibility
-            if (menuContainer.style.display === "none") {
-                // Position the menu relative to the button
-                const rect = element.getBoundingClientRect();
-                menuContainer.style.top = `${rect.bottom + window.scrollY}px`;
-                menuContainer.style.left = `${rect.left + window.scrollX}px`;
-                menuContainer.style.display = "block";
-                menuContainer.salaryProperty = {
-                    "test":"tYes"
-                };
-            } else {
-                menuContainer.style.display = "none";
-            }
-        }
-    }, false);
 
+    function createInfo() {
+        const infoContainer = document.createElement("div");
+        infoContainer.style.position = "fixed";
+        infoContainer.style.top = "10px";        // 10 pixels from the top edge
+        infoContainer.style.right = "1px";       // 10 pixels from the left edge
+        infoContainer.style.backgroundColor = "#fff";
+        infoContainer.style.padding = "1px";
+        infoContainer.style.border = "1px solid #333";
+        infoContainer.style.zIndex = "1000";
+
+        const newLabel = document.createElement("label");
+        newLabel.textContent = "Оклад: ";
+        newLabel.setAttribute("for", "salary");
+
+        const numberInput = document.createElement("input");
+        numberInput.setAttribute("type", "number"); // Set the type to number
+        numberInput.id = "salary";
+        numberInput.name = "salary";
+        numberInput.min = "1000"; // Set minimum value
+        numberInput.value = "1000"; // Set default value
+
+        const inputBox = document.createElement("div");
+        inputBox.appendChild(newLabel);
+        inputBox.appendChild(numberInput);
+        infoContainer.appendChild(inputBox);
+        document.body.appendChild(infoContainer);
+        return infoContainer;
+    }
+
+    let infoContainer = createInfo();
 
     const months = document.evaluate(
         "//table[@class='cal']",
         document,
         null,
-        XPathResult.UNORDERED_NODE_ITERATOR_TYPE,
+        XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
         null,
     );
-
-    try {
-        let thisNode = months.iterateNext();
-
-        while (thisNode) {
-            let month = thisNode.querySelector(".month");
-            let days = thisNode.querySelectorAll("tbody td:not(.inactively)");
-            console.log(month.textContent,days);
-            thisNode = months.iterateNext();
-        }
-    } catch (e) {
-        console.error(`Error: Document tree modified during iteration ${e}`);
+    for (let i = 0; i < months.snapshotLength; i++) {
+        let month = months.snapshotItem(i).querySelector(".month");
+        const monthBox = document.createElement("pre");
+        monthBox.style.border = "1px solid #333";
+        let days = months.snapshotItem(i).querySelectorAll("tbody td:not(.inactively)");
+        let workDays = months.snapshotItem(i).querySelectorAll('tbody td[class=""]');
+        monthBox.textContent = month.textContent+" wdays:"+workDays.length;
+        infoContainer.appendChild(monthBox);
+        days.forEach((dayElement, i) => {
+            dayElement.addEventListener("mouseover", function( event ) {
+                var element = event.target;
+                element.style.cursor = "copy";
+            }, false);
+            dayElement.addEventListener('click',function(event){
+                var element = event.target;
+                event.stopPropagation();
+                // Toggle visibility
+                if (menuContainer.style.display === "none") {
+                    // Position the menu relative to the button
+                    const rect = element.getBoundingClientRect();
+                    menuContainer.style.top = `${rect.bottom + window.scrollY}px`;
+                    menuContainer.style.left = `${rect.left + window.scrollX}px`;
+                    menuContainer.style.display = "block";
+                    menuContainer.clickedElement = element;
+                } else {
+                    menuContainer.style.display = "none";
+                    menuContainer.clickedElement = null;
+                }
+            }, false);
+            console.log(i, month.textContent, dayElement.textContent, dayElement.className);
+        });
     }
 })();
