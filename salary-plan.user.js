@@ -8,7 +8,8 @@
 // @updateURL   https://github.com/reeshkov/js/raw/master/salary-plan.user.js
 // @downloadURL https://github.com/reeshkov/js/raw/master/salary-plan.user.js
 // @category    Webtools
-// @grant      none
+// @grant       GM_getValue
+// @grant       GM_setValue
 // @run-at      document-idle
 // ==/UserScript==
 
@@ -16,8 +17,23 @@
 
 (function() {
     'use strict';
-    console.log("Days count loaded");
+    let debugReset = false;
+    console.log("Days count loaded", debugReset);
+    const year =  /(?<=proizvodstvennye\/)\d+/.exec(window.location.pathname)[0];
+    let userData = GM_getValue(year);
+    let userDataChanged = false;
+    if (!userData) {
+        userData = [];
+        userDataChanged = true;
+    } else {
+        userData = JSON.parse(userData);
+        // console.log("userData", JSON.stringify(userData));
+    }
+    let saveUserData = () => GM_setValue(year, JSON.stringify(userData));
     const salaryArgs = ["Рабочий","Отпуск","Больничный"];
+    const salaryArgsIndex = (() => {let o = {}; salaryArgs.forEach((k, i) => o[k] = i); return o;})()
+    const salaryArgsColors = ["white","green","yellow"];
+
 
     function createMenu() {
         const menuContainer = document.createElement("div");
@@ -28,14 +44,28 @@
             item.addEventListener('click',function(event){
                 var element = event.target;
                 event.stopPropagation();
-                console.log(i, menuContainer.clickedElement, element);
+                console.log(i, element.textContent, salaryArgsIndex[element.textContent]);
+                var dayElement = document.querySelector('[element-clicked-id="'+menuContainer.dataset.clickedElementId+'"]');
+                var elementDayType = dayElement.getAttribute("element-day-type"),
+                elementDayTypeNew = salaryArgsIndex[element.textContent],
+                m = dayElement.getAttribute("element-month-id"),
+                d = dayElement.getAttribute("element-day-id");
+                if (elementDayType != elementDayTypeNew) {
+                    userData[m][d] = elementDayTypeNew;
+                    userDataChanged = true;
+                    dayElement.setAttribute("element-day-type", elementDayTypeNew);
+                    console.log(dayElement);
+                }
+                if (userDataChanged) {
+                    saveUserData();
+                }
             }, false);
             item.addEventListener("mouseover", function( event ) {
                 var element = event.target;
                 element.style.cursor = "pointer";
             }, false);
             menuContainer.appendChild(item);
-            console.log("menu", arg, i, item);
+            // console.log("menu", arg, i, item);
         });
 
         // 3. Apply necessary CSS styles inline using JavaScript
@@ -77,8 +107,8 @@
         numberInput.setAttribute("type", "number"); // Set the type to number
         numberInput.id = "salary";
         numberInput.name = "salary";
-        numberInput.min = "1000"; // Set minimum value
-        numberInput.value = "1000"; // Set default value
+        numberInput.min = "310"; // Set minimum value
+        numberInput.value = "310"; // Set default value
 
         const inputBox = document.createElement("div");
         inputBox.appendChild(newLabel);
@@ -90,6 +120,23 @@
 
     let infoContainer = createInfo();
 
+    const observer = new MutationObserver(callback);
+    function callback(mutationsList, observer) {
+        for (const mutation of mutationsList) {
+            if (mutation.type === 'attributes') {
+                console.log(mutation.attributeName, mutation.target);
+                if ("element-day-type" === mutation.attributeName) {
+                    let dayElement = mutation.target;
+                    dayElement.style.backgroundColor = salaryArgsColors[dayElement.getAttribute("element-day-type")];
+                }
+            }
+        }
+    }
+    const observer_config = {
+        attributes: true,
+        attributeOldValue: true
+    };
+
     const months = document.evaluate(
         "//table[@class='cal']",
         document,
@@ -97,36 +144,51 @@
         XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
         null,
     );
-    for (let i = 0; i < months.snapshotLength; i++) {
-        let month = months.snapshotItem(i).querySelector(".month");
+    for (let m = 0; m < months.snapshotLength; m++) {
+        let month = months.snapshotItem(m).querySelector(".month");
         const monthBox = document.createElement("pre");
         monthBox.style.border = "1px solid #333";
-        let days = months.snapshotItem(i).querySelectorAll("tbody td:not(.inactively)");
-        let workDays = months.snapshotItem(i).querySelectorAll('tbody td[class=""]');
-        monthBox.textContent = month.textContent+" wdays:"+workDays.length;
+        let days = months.snapshotItem(m).querySelectorAll("tbody td:not(.inactively)");
+        let workDays = months.snapshotItem(m).querySelectorAll('tbody td[class=""]');
+        monthBox.textContent = month.textContent+" wDays:"+workDays.length+" dCost:"+Math.ceil(infoContainer.querySelector("input").value / workDays.length);
         infoContainer.appendChild(monthBox);
-        days.forEach((dayElement, i) => {
-            dayElement.addEventListener("mouseover", function( event ) {
-                var element = event.target;
-                element.style.cursor = "copy";
-            }, false);
+        days.forEach((dayElement, d) => {
+            dayElement.style.cursor = "copy";
+            if (!userData[m] || debugReset) {
+                userData[m] = [];
+                userDataChanged = true;
+            }
+            if (!userData[m][d]) {
+                userData[m][d] = salaryArgsIndex["Рабочий"];
+                userDataChanged = true;
+            }
+            var clickedElementId ="m"+m+"d"+d, 
+                dayType = userData[m][d];
+            dayElement.setAttribute("element-clicked-id", clickedElementId);
+            dayElement.setAttribute("element-day-type", dayType);
+            dayElement.setAttribute("element-month-id", m);
+            dayElement.setAttribute("element-day-id", d);
+            dayElement.style.backgroundColor = salaryArgsColors[dayType];
             dayElement.addEventListener('click',function(event){
-                var element = event.target;
                 event.stopPropagation();
+                var dayElement = event.target;
                 // Toggle visibility
                 if (menuContainer.style.display === "none") {
                     // Position the menu relative to the button
-                    const rect = element.getBoundingClientRect();
+                    const rect = dayElement.getBoundingClientRect();
                     menuContainer.style.top = `${rect.bottom + window.scrollY}px`;
                     menuContainer.style.left = `${rect.left + window.scrollX}px`;
                     menuContainer.style.display = "block";
-                    menuContainer.clickedElement = element;
+                    menuContainer.dataset.clickedElementId = clickedElementId;
                 } else {
                     menuContainer.style.display = "none";
-                    menuContainer.clickedElement = null;
+                    menuContainer.dataset.clickedElement = null;
                 }
             }, false);
-            console.log(i, month.textContent, dayElement.textContent, dayElement.className);
+            observer.observe(dayElement, observer_config);
         });
+    }
+    if (userDataChanged) {
+        saveUserData();
     }
 })();
