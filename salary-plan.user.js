@@ -18,25 +18,49 @@
 (function() {
     'use strict';
     let debugReset = false;
+    // debugReset = true;
     console.log("Days count loaded", debugReset);
     const year =  /(?<=proizvodstvennye\/)\d+/.exec(window.location.pathname)[0];
-    let userData = GM_getValue(year);
-    let userDataChanged = false;
-    if (!userData) {
-        userData = [];
-        userDataChanged = true;
+    const salaryArgs = ["Очистить","Отпуск","Больничный"];
+    const salaryArgsIndex = (() => {let o = {}; salaryArgs.forEach((k, i) => o[k] = i); return o;})();
+    const salaryArgsColors = ["white","green","yellow"];
+
+    let g_userData = GM_getValue(year);
+    let g_userDataChanged = false;
+    if (!g_userData || debugReset) {
+        g_userData = [];
+        g_userDataChanged = true;
     } else {
-        userData = JSON.parse(userData);
+        g_userData = JSON.parse(g_userData);
         // console.log("userData", JSON.stringify(userData));
     }
     let saveUserData = () => {
-        var data = JSON.stringify(userData)
+        var data = JSON.stringify(g_userData);
         GM_setValue(year, data);
-        userDataChanged = false;
+        g_userDataChanged = false;
     };
-    const salaryArgs = ["Рабочий","Отпуск","Больничный"];
-    const salaryArgsIndex = (() => {let o = {}; salaryArgs.forEach((k, i) => o[k] = i); return o;})()
-    const salaryArgsColors = ["white","green","yellow"];
+    let updateMonth = (monthId) => {
+        let monthBox = infoContainer.querySelector('[element-month-id="m'+monthId+'"]'),
+            monthName = monthBox.getAttribute("element-month-name"),
+            dayWorks = parseInt(monthBox.getAttribute("element-month-dayworks")),
+            salary = parseInt(infoContainer.querySelector("input").value),
+            salaryAvg = Math.ceil(salary / 29.3),
+            daysCount = g_userData[monthId].length,
+            dayCost = Math.ceil(salary / dayWorks),
+            daysWorked = g_userData[monthId].filter((t,i) => {
+                return salaryArgsIndex["Очистить"] === t;
+            }).length,
+            daysVacation = g_userData[monthId].filter((t,i) => {
+                return salaryArgsIndex["Отпуск"] === t;
+            }).length;
+        console.log("updateMonth",monthName, daysWorked, dayWorks, daysWorked !== dayWorks, daysVacation);
+        if (daysWorked !== dayWorks) {
+            salary = dayCost * daysWorked;
+            salary += daysVacation * salaryAvg;
+        } 
+        monthBox.textContent = monthName+"\nwDays:"+dayWorks+"/"+daysWorked+"/"+daysVacation+" cost:"+dayCost+"/"+salaryAvg+
+                                "\nsalary:"+Math.ceil(salary*0.87);
+    };
 
 
     function createMenu() {
@@ -45,23 +69,20 @@
         salaryArgs.forEach((arg, i) => {
             let item = document.createElement("div");
             item.textContent = arg;
+            item.style.backgroundColor = salaryArgsColors[i];
             item.addEventListener('click',function(event){
                 var element = event.target;
                 event.stopPropagation();
                 var dayElement = document.querySelector('[element-clicked-id="'+menuContainer.dataset.clickedElementId+'"]');
-                var elementDayType = parseInt(dayElement.getAttribute("element-day-type")),
-                elementDayTypeNew = salaryArgsIndex[element.textContent],
-                m = dayElement.getAttribute("element-month-id"),
-                d = dayElement.getAttribute("element-day-id");
-                if (elementDayType != elementDayTypeNew) {
-                    userData[m][d] = elementDayTypeNew;
-                    userDataChanged = true;
-                    dayElement.setAttribute("element-day-type", elementDayTypeNew);
-                    console.log(dayElement);
-                }
-                if (userDataChanged) {
-                    console.log(i, element.textContent, typeof elementDayType, elementDayType, elementDayType!=elementDayTypeNew, elementDayTypeNew, typeof elementDayTypeNew);
-                    saveUserData();
+                var elementDayTypeCurrent = parseInt(dayElement.getAttribute("element-day-type")),
+                elementDayTypeNew = salaryArgsIndex[element.textContent];
+                // console.log("change day type", dayElement, elementDayTypeNew); // 
+                if (elementDayTypeCurrent != elementDayTypeNew) {
+                    console.log("changed day type", elementDayTypeCurrent,"->", elementDayTypeNew, dayElement.getAttribute("class"));
+                    if (salaryArgsIndex[salaryArgs[0]] === elementDayTypeNew && "" != dayElement.getAttribute("class"))
+                        dayElement.setAttribute("element-day-type", -1);
+                    else
+                        dayElement.setAttribute("element-day-type", elementDayTypeNew);
                     menuContainer.style.display = "none";
                 }
             }, false);
@@ -113,7 +134,7 @@
         numberInput.id = "salary";
         numberInput.name = "salary";
         numberInput.min = "310"; // Set minimum value
-        numberInput.value = "310"; // Set default value
+        numberInput.value = "250000"; // Set default value
 
         const inputBox = document.createElement("div");
         inputBox.appendChild(newLabel);
@@ -129,10 +150,17 @@
     function callback(mutationsList, observer) {
         for (const mutation of mutationsList) {
             if (mutation.type === 'attributes') {
-                console.log(mutation.attributeName, mutation.target);
+                // console.log(mutation.attributeName, mutation.target);
                 if ("element-day-type" === mutation.attributeName) {
-                    let dayElement = mutation.target;
-                    dayElement.style.backgroundColor = salaryArgsColors[dayElement.getAttribute("element-day-type")];
+                    let dayElement = mutation.target,
+                    dayType = parseInt(dayElement.getAttribute("element-day-type")),
+                    m = dayElement.getAttribute("element-month-id"),
+                    d = dayElement.getAttribute("element-day-id");
+                    console.log("callback", m, d, g_userData[m][d],"->",dayType);
+                    g_userData[m][d] = dayType;
+                    saveUserData();
+                    updateMonth(m);
+                    dayElement.style.backgroundColor = salaryArgsColors[0<=dayType?dayType:0];
                 }
             }
         }
@@ -149,31 +177,38 @@
         XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
         null,
     );
+    let yearDaysWork = 0;
     for (let m = 0; m < months.snapshotLength; m++) {
         let month = months.snapshotItem(m).querySelector(".month");
         const monthBox = document.createElement("pre");
         monthBox.style.border = "1px solid #333";
         let days = months.snapshotItem(m).querySelectorAll("tbody td:not(.inactively)");
-        let workDays = months.snapshotItem(m).querySelectorAll('tbody td[class=""]');
-        monthBox.textContent = month.textContent+" wDays:"+workDays.length+" dCost:"+Math.ceil(infoContainer.querySelector("input").value / workDays.length);
+        let dayWorks = months.snapshotItem(m).querySelectorAll('tbody td[class=""]').length;
+        yearDaysWork += dayWorks;
+        monthBox.setAttribute("element-month-dayworks", dayWorks);
+        monthBox.setAttribute("element-month-id", "m"+m);
+        monthBox.setAttribute("element-month-name", month.textContent);
+        // monthBox.textContent = month.textContent+" wDays:"+dayWorks+" dCost:"+Math.ceil(infoContainer.querySelector("input").value / dayWorks);
         infoContainer.appendChild(monthBox);
         days.forEach((dayElement, d) => {
             dayElement.style.cursor = "copy";
-            if (!userData[m] || debugReset) {
-                userData[m] = [];
-                userDataChanged = true;
+            if (!g_userData[m]) {
+                g_userData[m] = [];
+                g_userDataChanged = true;
             }
-            if (!userData[m][d]) {
-                userData[m][d] = salaryArgsIndex["Рабочий"];
-                userDataChanged = true;
+            console.log("day=",m,d,dayElement.getAttribute("class"), g_userData[m][d]);
+            if (!g_userData[m][d]) {
+                g_userData[m][d] = ("" === dayElement.getAttribute("class") ? 0 : -1);
+                g_userDataChanged = true;
             }
             var clickedElementId ="m"+m+"d"+d, 
-                dayType = userData[m][d];
+                dayType = g_userData[m][d];
             dayElement.setAttribute("element-clicked-id", clickedElementId);
             dayElement.setAttribute("element-day-type", dayType);
             dayElement.setAttribute("element-month-id", m);
             dayElement.setAttribute("element-day-id", d);
-            dayElement.style.backgroundColor = salaryArgsColors[dayType];
+            if ( !(0 > dayType))
+                dayElement.style.backgroundColor = salaryArgsColors[dayType];
             dayElement.addEventListener('click',function(event){
                 event.stopPropagation();
                 var dayElement = event.target;
@@ -192,8 +227,9 @@
             }, false);
             observer.observe(dayElement, observer_config);
         });
+        updateMonth(m);
     }
-    if (userDataChanged) {
+    if (g_userDataChanged) {
         saveUserData();
     }
 })();
