@@ -44,21 +44,25 @@
             monthName = monthBox.getAttribute("element-month-name"),
             dayWorks = parseInt(monthBox.getAttribute("element-month-dayworks")),
             salary = parseInt(infoContainer.querySelector("input").value),
-            salaryAvg = Math.ceil(salary / 29.3),
-            daysCount = g_userData[monthId].length,
+            dayCostAvg = Math.ceil(12 * salary / 12 / 29.3),
+            // daysCount = g_userData[monthId].length,
             dayCost = Math.ceil(salary / dayWorks),
             daysWorked = g_userData[monthId].filter((t,i) => {
                 return salaryArgsIndex["Очистить"] === t;
             }).length,
             daysVacation = g_userData[monthId].filter((t,i) => {
                 return salaryArgsIndex["Отпуск"] === t;
+            }).length,
+            daysSic = g_userData[monthId].filter((t,i) => {
+                return salaryArgsIndex["Больничный"] === t;
             }).length;
         console.log("updateMonth",monthName, daysWorked, dayWorks, daysWorked !== dayWorks, daysVacation);
         if (daysWorked !== dayWorks) {
             salary = dayCost * daysWorked;
-            salary += daysVacation * salaryAvg;
+            salary += dayCostAvg * daysVacation;
+            salary += dayCostAvg * daysSic;
         } 
-        monthBox.textContent = monthName+"\nwDays:"+dayWorks+"/"+daysWorked+"/"+daysVacation+" cost:"+dayCost+"/"+salaryAvg+
+        monthBox.textContent = monthName+"\nwDays:"+dayWorks+"/"+daysWorked+"/"+daysVacation+" cost:"+dayCost+"/"+dayCostAvg+
                                 "\nsalary:"+Math.ceil(salary*0.87);
     };
 
@@ -133,7 +137,7 @@
         numberInput.setAttribute("type", "number"); // Set the type to number
         numberInput.id = "salary";
         numberInput.name = "salary";
-        numberInput.min = "310"; // Set minimum value
+        numberInput.min = "31"; // Set minimum value
         numberInput.value = "250000"; // Set default value
 
         const inputBox = document.createElement("div");
